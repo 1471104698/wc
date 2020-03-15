@@ -6,6 +6,7 @@ import cn.oy.test.utils.StringUtil;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -55,9 +56,8 @@ public class WcTest {
 
             wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\wc\??????.java
 
-            wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\utils\****.java
              */
-            //判断操作数组是否符合标准
+            //前置检查：判断操作数组是否符合标准
             if(!StringUtil.opStrsIsOk(opStrs)){
                 //异常处理，这里用输出代替
                 System.out.println("指令输入有误，请重新输入！！！");
@@ -71,7 +71,7 @@ public class WcTest {
                     recHandle(opStrs);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("出现未知错误！！！");
             }
             System.out.println("***********************************");
             System.out.println("***********************************");
@@ -128,7 +128,7 @@ public class WcTest {
                 case "-l":
                     System.out.println("行数：" + readFileLine(reader)); break;
                 case "-a":
-                    // System.out.println(recHandle());
+                    readFileSpecialLine(reader);
                 default: break;
             }
         }
@@ -150,7 +150,7 @@ public class WcTest {
         String curCatalog = opStrs[pos];
 
         File file = new File(opStrs[pos]);
-        //file.isFile() 能判断是否是文件或目录是否存在，如果是目录或目录不存在则返回 false
+        //file.isFile() 能判断是否是文件
         if(file.isFile()){
             //异常处理
             System.out.println("目录错误 或 所选择路径不是一个目录");
@@ -220,6 +220,7 @@ public class WcTest {
         int countWord = 0;
         String str = "";
         while((str = reader.readLine()) != null){
+            //这里只使用部分符号，还有更多符号没有进行添加
             countWord += str.split("\\s+|\\(|\\)|,|\\.|\\:|\\{|\\}|\\-|\\*|\\+|;|\\?|\\/|\\\\|/").length;
         }
         return countWord;
@@ -230,7 +231,51 @@ public class WcTest {
      * 读取特殊行
      * @param reader
      */
-    private void readFileSpecialLine(BufferedReader reader){
+    private void readFileSpecialLine(BufferedReader reader) throws IOException {    //
+        /*
+        注释行的情况：
+        单行注释：开头： 1、// 2、空格 + // 3、单个字符 + //
+        多行注释：开头：/* ，使用 flag 进行记录接下来内容是否属于该注释行的注释内容,直到找到 * / 为止
+
+        空行：1、空格 2、除空格外的，只有 1 个字符
+
+        代码行：不包括空格，至少有 2 个字符
+         */
+        List<String> noteList = Arrays.asList("//", "/*", "*/");
+        String oneNote = "//";
+        String moreNoteStart = "/*";
+        String moreNoteEnd = "*/";
+
+        int noteLine = 0;
+        int trimLine = 0;
+        int codeLine = 0;
+        boolean flag = false;
+        String str = "";
+        while ((str = reader.readLine()) != null){
+            str = str.trim();
+            if(str.length() < 2){  //空行，0 个字符或 1 个字符
+                trimLine++;
+            }else if(oneNote.equals(str.substring(0, 2)) || str.length() > 2 && oneNote.equals(str.substring(1, 3))){            //单行注释
+                noteLine++;
+            }else if(moreNoteStart.equals(str.substring(0, 2))){    //多行注释开头
+                noteLine++;
+                //判断结尾标识符 */ 是否在当前行
+                if(!str.contains(moreNoteEnd)){
+                    flag = true;
+                }
+            }else if(str.contains(moreNoteEnd)){    //该行是注释的结尾
+                noteLine++;
+                flag = false;
+            }else if(flag){
+                noteLine++;
+            }else{
+                codeLine++;
+            }
+        }
+        //wc -a F:\idea-workspace\ruangong1\src\cn\oy\test\wc\T.java
+        System.out.println("注释行：" + noteLine);
+        System.out.println("空行：" + trimLine);
+        System.out.println("代码行：" + codeLine);
     }
 
     /**

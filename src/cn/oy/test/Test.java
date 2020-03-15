@@ -23,5 +23,6 @@ public class Test {
         wcTest.input();
         // File file = new File("F:\\idea-workspace\\ruangong1\\src\\cn\\oy\\test\\wc\\WcTest.java");
         // System.out.println(file.getParentFile());
+        // System.out.println("//".split("//").length);
     }
 }
