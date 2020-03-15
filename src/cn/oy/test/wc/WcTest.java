@@ -7,6 +7,7 @@ import cn.oy.test.utils.StringUtil;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 /**
  * @author 蒜头王八
@@ -17,7 +18,7 @@ import java.util.List;
 public class WcTest {
 
     //默认处理 .java 文件
-    String suffixName = ".java";
+    private String suffixName = ".java";
 
     /**
      * 构造方法
@@ -30,13 +31,60 @@ public class WcTest {
     public WcTest(){
     }
 
+    /**
+     * 对外开放主函数
+     */
+    public void input(){
+        Scanner scanner = new Scanner(System.in);
+        do {
+            System.out.println("命令行格式：wc [options] [filePath]");
+            System.out.println("ps：如需 -s 递归，请输入目录路径");
+            System.out.println("退出输入：exit");
+            String inStr = scanner.nextLine();
+            if("exit".equals(inStr)){
+                break;
+            }
+
+            String[] opStrs = inStr.split("\\s+");
+
+            /*
+            wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\Test.java
+            wc -s -c -c F:\idea-workspace\ruangong1\src\cn\oy\test
+
+            wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\wc\WcTest.java
+
+            wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\wc\??????.java
+
+            wc -c F:\idea-workspace\ruangong1\src\cn\oy\test\utils\****.java
+             */
+            //判断操作数组是否符合标准
+            if(!StringUtil.opStrsIsOk(opStrs)){
+                //异常处理，这里用输出代替
+                System.out.println("指令输入有误，请重新输入！！！");
+                continue;
+            }
+
+            try {
+                if(!StringConstant.RECURSION_CHARACTER.equals(opStrs[1])){
+                    op(opStrs);
+                }else {
+                    recHandle(opStrs);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("***********************************");
+            System.out.println("***********************************");
+        } while (true);
+    }
+
 
     /**
      * 文件操作函数
      * @param opStrs 操作字符串数组
      * @throws IOException
      */
-    public void op(String[] opStrs) throws IOException {
+    private void op(String[] opStrs) throws IOException {
 
         int pos = opStrs.length - 1;
 
@@ -46,14 +94,16 @@ public class WcTest {
             System.out.println("文件格式错误");
             return;
         }
-        //第一次提交，粗略完成部分功能，重要代码都添加了注释
 
         File file = new File(opStrs[pos]);
 
         //文件不存在
         if(!file.exists()){
-            //异常处理，这里用输出代替
-            System.out.println("文件不存在");
+            //判断是否满足通配符匹配，如果是从 -s 过来的，文件肯定是存在的，因此不会进入到这里的匹配阶段
+            if(!matchFileHandle(opStrs, file)){
+                //异常处理，这里用输出代替
+                System.out.println("文件不存在");
+            }
             return;
         }
 
@@ -86,6 +136,7 @@ public class WcTest {
         StreamUtil.closeStream(reader);
     }
 
+
     /**
      * 递归处理目录及子目录下的文件
      *
@@ -93,7 +144,7 @@ public class WcTest {
      * @param opStrs 操作字符串
      */
     //wc -s -c file.c
-    public void recHandle(String[] opStrs) throws IOException {
+    private void recHandle(String[] opStrs) throws IOException {
         int pos = opStrs.length - 1;
         //记录当前目录位置，防止因为后续修改而丢失
         String curCatalog = opStrs[pos];
@@ -144,6 +195,21 @@ public class WcTest {
     }
 
     /**
+     * 获取字符数
+     * @param reader
+     * @return
+     * @throws IOException
+     */
+    private int readFileCharacter(BufferedReader reader) throws IOException {
+        int countCharacter = 0;
+        String str = "";
+        while((str = reader.readLine()) != null){
+            countCharacter += str.length();
+        }
+        return countCharacter;
+    }
+
+    /**
      * 获取单词数
      * @param reader
      * @return
@@ -159,19 +225,105 @@ public class WcTest {
         return countWord;
     }
 
+
     /**
-     * 获取字符数
+     * 读取特殊行
      * @param reader
-     * @return
-     * @throws IOException
      */
-    private int readFileCharacter(BufferedReader reader) throws IOException {
-        int countCharacter = 0;
-        String str = "";
-        while((str = reader.readLine()) != null){
-            countCharacter += str.length();
+    private void readFileSpecialLine(BufferedReader reader){
+    }
+
+    /**
+     * 查找目录下的通配符匹配文件，不包括递归，只遍历跟当前文件同目录的文件
+     * @param file
+     */
+    private boolean matchFileHandle(String[] opStrs, File file) throws IOException {
+        //得到当前文件名称
+        String fileName = file.getName();
+        //判断是否存在匹配通配符
+        if(!isExistMatch(fileName)){
+            return false;
         }
-        return countCharacter;
+        //得到父路径
+        File parentFile = file.getParentFile();
+        //遍历父路径下的所有文件
+        File[] files = parentFile.listFiles();
+        if (files != null) {
+            for(File f : files){
+                //判断是否匹配
+                if(isMatch(f.getName(), fileName)){
+                    //修改文件路径
+                    opStrs[opStrs.length - 1] = f.getPath();
+                    op(opStrs);
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 判断文件名是否存在 ? 或 * 通配符
+     * @param fileName
+     * @return
+     */
+    private boolean isExistMatch(String fileName){
+        return fileName.contains("?") || fileName.contains("*");
+    }
+
+    /**
+     * 通配符匹配    ？ 可表示任意单个字符， * 可以表示任意单个或多个字符，也可以表示空串
+     * s1 和 s2 是否匹配
+     * @param s
+     * @param p
+     * @return
+     */
+    private boolean isMatch(String s, String p){
+        /*
+        输入:s = "aa"  	p = "a"
+        输出: false
+        解释: "a" 无法匹配 "aa" 整个字符串。
+
+        输入:s = "aa"		p = "*"
+        输出: true
+        解释: '*' 可以匹配任意字符串。
+
+        使用动态规划
+        dp[i][j] 表示 s1 的前 i 个字符是否能被 s2 的前 j 个字符进行匹配
+
+           ""   a   d   c   e   b
+        ""  T   F   F   F   F   F
+        *   T   T   T   T   T   T
+        *   T   T   T   T   T   T
+        a   F   T   F   F   F   F
+        *   F   T   T   T   T   T
+        b   F   F   F   F   F   T
+         */
+
+        char[] ss = s.toCharArray();
+        char[] ps = p.toCharArray();
+
+        boolean[][] dp = new boolean[ss.length + 1][ps.length + 1];
+
+        //当 ss 和 ps 都只有 0 个字符的时候，那么匹配
+        dp[0][0] = true;
+
+        //当 ss 为空串时，那么只有 ps 全部为 * 时才可以进行匹配（？ 必须匹配单个字符，不能匹配空串）
+        for(int i = 1; i <= ps.length; i++){
+            dp[0][i] = ps[i - 1] == '*' && dp[0][i - 1];
+        }
+
+        for(int i = 1; i <= ss.length; i++){
+            for(int j = 1; j <= ps.length; j++){
+                if(ps[j - 1] == '?' || ps[j - 1] == ss[i - 1]){
+                    //如果 ps 的当前字符为 ? 或者 ss 和 ps 当前字符相同，那么直接看两者上一个字符的匹配情况
+                    dp[i][j] = dp[i - 1][j - 1];
+                }else if(ps[j - 1] == '*'){
+                    //如果 ps 当前字符为 *，那么有两种情况，匹配 ss 当前字符（该选择类似完全背包问题） 或者不匹配，即匹配空串
+                    dp[i][j] = dp[i - 1][j] || dp[i][j - 1];
+                }
+            }
+        }
+        return dp[ss.length][ps.length];
     }
 
 }
