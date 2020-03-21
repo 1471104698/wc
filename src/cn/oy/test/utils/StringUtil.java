@@ -70,7 +70,7 @@ public class StringUtil {
             if(!set.add(opStrs[i])){
                 return false;
             }
-            //出现递归标识符
+            //出现递归标识符 -s
             if(StringConstant.RECURSION_CHARACTER.equals(opStrs[i])){
                 //在之前就出现了普通操作数，那么顺序不对
                 if(com_flag){
